@@ -156,7 +156,7 @@ module basic_spi_tb;
     ////// WRITE_FAST_4 //////
     set_cs(0);
     send('h12); // CMD: PP4
-    send('h31); // ADDR BYTE3
+    send('h00); // ADDR BYTE3
     send('h51); // ADDR BYTE2
     send('h60); // ADDR BYTE1
     send('h11); // ADDR BYTE0
@@ -171,7 +171,7 @@ module basic_spi_tb;
     ////// READ_FAST_4 //////
     set_cs(0);
     send('h0C); // CMD: Read
-    send('h31); // ADDR BYTE3
+    send('h00); // ADDR BYTE3
     send('h51); // ADDR BYTE2
     send('h60); // ADDR BYTE1
     send('h11); // ADDR BYTE0
