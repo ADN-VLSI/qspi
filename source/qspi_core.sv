@@ -1,6 +1,6 @@
 module qspi_core (
 
-    input spi_control_reg_t control_reg_i,
+    input spi_control_reg_t ctrl_reg_i,
 
     input logic arst_ni,
     input logic clk_i,
