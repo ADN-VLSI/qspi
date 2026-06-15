@@ -9,7 +9,7 @@ module tx_unpacker (
 
   always_comb begin
     for (int i = 1; i < 4; i++) begin
-      data_o_sel[i] = data_o_sel[i-1] + 1;
+      data_o_sel[i] = data_o_sel[0] + i;
     end
   end
 
