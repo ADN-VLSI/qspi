@@ -1,7 +1,7 @@
-`ifndef SPI_PKG_SV
-`define SPI_PKG_SV 0
+`ifndef QSPI_PKG_SV
+`define QSPI_PKG_SV 0
 
-        package spi_pkg;
+        package qspi_pkg;
 
           localparam int ADDR_CLK_DIV0    = 'h 0000;
           localparam int ADDR_CLK_DIV1    = 'h 0001;
@@ -61,7 +61,7 @@
                     logic [2:0] RMODE_CFG;
                     logic [7:0] RDATA_CMD;
                     logic [1:0] RDATA_CFG;
-                  } spi_control_reg_t;
+                  } qspi_control_reg_t;
 
         endpackage
 

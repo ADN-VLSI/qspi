@@ -1,7 +1,7 @@
-/*
+`include "package/qspi_pkg.sv"
 module qspi_core (
 
-    input spi_control_reg_t ctrl_reg_i,
+    input qspi_pkg::qspi_control_reg_t ctrl_reg_i,
 
     input logic arst_ni,
     input logic clk_i,
@@ -18,7 +18,6 @@ module qspi_core (
     output logic       data_valid_o,
     input  logic       data_ready_i
 
-  );
+);
 
 endmodule
-*/

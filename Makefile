@@ -8,6 +8,7 @@ ROOT_DIR  := $(CURDIR)
 BUILD_DIR := $(ROOT_DIR)/build
 LOG_DIR   := $(ROOT_DIR)/log
 
+FILES += -i $(ROOT_DIR)/include
 FILES += $(ROOT_DIR)/third_party/s25fs256s.v
 FILES += $(shell find $(ROOT_DIR)/source -name "*.sv")
 FILES += $(shell find $(ROOT_DIR)/tb -name "*.sv")
@@ -38,4 +39,4 @@ sim:
 	@echo -e "\033[1;33mStarting simulation for top-level module:\033[0m $(TOP)"
 	@cd $(BUILD_DIR) && xvlog -sv -d SPEEDSIM $(FILES) -log $(LOG_DIR)/xvlog_$(shell date +%Y%m%d_%H%M%S).log $(EWLH)
 	@cd $(BUILD_DIR) && xelab $(TOP) -debug all -s snap_$(TOP) -log $(LOG_DIR)/xelab_$(TOP)_$(shell date +%Y%m%d_%H%M%S).log $(EWLH)
-	@cd $(BUILD_DIR) && xsim snap_$(TOP) -gui -log $(LOG_DIR)/xsim_$(TOP)_$(shell date +%Y%m%d_%H%M%S).log $(EWLH)
+	@cd $(BUILD_DIR) && xsim snap_$(TOP) -runall -log $(LOG_DIR)/xsim_$(TOP)_$(shell date +%Y%m%d_%H%M%S).log $(EWLH)
