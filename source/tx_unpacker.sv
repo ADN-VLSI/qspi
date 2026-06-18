@@ -15,9 +15,9 @@ module tx_unpacker (
 
   always_comb begin
     case (size_i)
-      2'b00:   data_o_sel[0] = cycle_i;
-      2'b01:   data_o_sel[0] = {cycle_i[1:0], 1'b0};
-      default: data_o_sel[0] = {cycle_i[0], 2'b0};
+      2'b00:   data_o_sel[0] = 7 - cycle_i;
+      2'b01:   data_o_sel[0] = 6 - {cycle_i[1:0], 1'b0};
+      default: data_o_sel[0] = 4 - {cycle_i[0], 2'b0};
     endcase
   end
 

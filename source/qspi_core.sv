@@ -1,3 +1,4 @@
+/*
 module qspi_core (
 
     input spi_control_reg_t ctrl_reg_i,
@@ -20,3 +21,4 @@ module qspi_core (
   );
 
 endmodule
+*/
