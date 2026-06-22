@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="980" height="760" viewBox="0 0 980 760" font-family="Segoe UI, Arial, sans-serif">
+
+  <!-- ============ DEFINITIONS ============ -->
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="#444" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowG" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="#1d9e75" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowO" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="#d85a30" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="#ba7517" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowB" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="#185fa5" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+    <marker id="arrowP" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M1 1 L9 5 L1 9" fill="none" stroke="#534ab7" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+    </marker>
+  </defs>
+
+  <!-- ============ TITLE ============ -->
+  <text x="490" y="30" text-anchor="middle" font-size="20" font-weight="600" fill="#222">QSPI Controller Architecture</text>
+
+  <!-- ============ CLOCK DOMAIN DIVIDER ============ -->
+  <line x1="500" y1="50" x2="500" y2="640" stroke="#999" stroke-width="1" stroke-dasharray="8 5"/>
+  <text x="250" y="62" text-anchor="middle" font-size="13" fill="#185fa5" font-style="italic">system clock domain (fast)</text>
+  <text x="730" y="62" text-anchor="middle" font-size="13" fill="#ba7517" font-style="italic">SPI clock domain (slow)</text>
+
+  <!-- ============ CPU ============ -->
+  <g id="cpu">
+    <rect x="40" y="80" width="110" height="50" rx="8" fill="#f1efe8" stroke="#5f5e5a" stroke-width="1"/>
+    <text x="95" y="110" text-anchor="middle" font-size="15" font-weight="600" fill="#2c2c2a">CPU</text>
+  </g>
+
+  <!-- ============ REGISTER FILE ============ -->
+  <g id="regfile">
+    <rect x="200" y="80" width="220" height="120" rx="8" fill="#eeedfe" stroke="#534ab7" stroke-width="1"/>
+    <text x="310" y="106" text-anchor="middle" font-size="15" font-weight="600" fill="#3c3489">Register file</text>
+    <text x="310" y="128" text-anchor="middle" font-size="12" fill="#3c3489">all config boxes stored</text>
+    <text x="310" y="150" text-anchor="middle" font-size="12" fill="#3c3489">CLK_DIV, ADDR, CNT,</text>
+    <text x="310" y="168" text-anchor="middle" font-size="12" fill="#3c3489">_CMD, _CFG (WE/CMD/ADDR/MODE/DATA)</text>
+    <text x="310" y="190" text-anchor="middle" font-size="12" fill="#3c3489" font-style="italic">outputs: ctrl_reg_i, clk_div</text>
+  </g>
+
+  <!-- ============ FSM ============ -->
+  <g id="fsm">
+    <rect x="560" y="80" width="230" height="120" rx="8" fill="#faece7" stroke="#993c1d" stroke-width="1"/>
+    <text x="675" y="106" text-anchor="middle" font-size="15" font-weight="600" fill="#712b13">FSM (state machine)</text>
+    <text x="675" y="128" text-anchor="middle" font-size="12" fill="#712b13">the brain — controls all blocks</text>
+    <text x="675" y="150" text-anchor="middle" font-size="12" fill="#712b13">phase sequencer:</text>
+    <text x="675" y="172" text-anchor="middle" font-size="12" fill="#712b13">CS down -> CMD -> ADDR -></text>
+    <text x="675" y="190" text-anchor="middle" font-size="12" fill="#712b13">MODE -> DATA -> CS up</text>
+  </g>
+
+  <!-- ============ SCK GEN ============ -->
+  <g id="sckgen">
+    <rect x="560" y="230" width="150" height="60" rx="8" fill="#faeeda" stroke="#854f0b" stroke-width="1"/>
+    <text x="635" y="256" text-anchor="middle" font-size="15" font-weight="600" fill="#633806">SCK gen</text>
+    <text x="635" y="278" text-anchor="middle" font-size="12" fill="#633806">clk_div -> sck</text>
+  </g>
+
+  <!-- ============ TX FIFO ============ -->
+  <g id="txfifo">
+    <rect x="200" y="320" width="220" height="60" rx="8" fill="#e1f5ee" stroke="#0f6e56" stroke-width="1"/>
+    <text x="310" y="346" text-anchor="middle" font-size="15" font-weight="600" fill="#085041">TX CDC FIFO</text>
+    <text x="310" y="368" text-anchor="middle" font-size="12" fill="#085041">holds CPU write data</text>
+  </g>
+
+  <!-- ============ TX SHIFTER ============ -->
+  <g id="txshift">
+    <rect x="560" y="320" width="150" height="60" rx="8" fill="#e6f1fb" stroke="#185fa5" stroke-width="1"/>
+    <text x="635" y="346" text-anchor="middle" font-size="15" font-weight="600" fill="#0c447c">TX shifter</text>
+    <text x="635" y="368" text-anchor="middle" font-size="12" fill="#0c447c">byte -> bits, send</text>
+  </g>
+
+  <!-- ============ RX UNPACKER ============ -->
+  <g id="rxunpack">
+    <rect x="560" y="410" width="150" height="60" rx="8" fill="#e6f1fb" stroke="#185fa5" stroke-width="1"/>
+    <text x="635" y="436" text-anchor="middle" font-size="15" font-weight="600" fill="#0c447c">RX unpacker</text>
+    <text x="635" y="458" text-anchor="middle" font-size="12" fill="#0c447c">bits -> byte</text>
+  </g>
+
+  <!-- ============ RX FIFO ============ -->
+  <g id="rxfifo">
+    <rect x="200" y="410" width="220" height="60" rx="8" fill="#e1f5ee" stroke="#0f6e56" stroke-width="1"/>
+    <text x="310" y="436" text-anchor="middle" font-size="15" font-weight="600" fill="#085041">RX CDC FIFO</text>
+    <text x="310" y="458" text-anchor="middle" font-size="12" fill="#085041">holds read data</text>
+  </g>
+
+  <!-- ============ IO MUX / DEMUX ============ -->
+  <g id="iomux">
+    <rect x="820" y="320" width="120" height="180" rx="8" fill="#f1efe8" stroke="#5f5e5a" stroke-width="1"/>
+    <text x="880" y="352" text-anchor="middle" font-size="15" font-weight="600" fill="#2c2c2a">IO mux</text>
+    <text x="880" y="372" text-anchor="middle" font-size="13" fill="#2c2c2a">/ demux</text>
+    <text x="880" y="402" text-anchor="middle" font-size="12" fill="#2c2c2a">picks 1/2/4</text>
+    <text x="880" y="420" text-anchor="middle" font-size="12" fill="#2c2c2a">wires</text>
+    <text x="880" y="448" text-anchor="middle" font-size="12" fill="#2c2c2a">+ direction</text>
+    <text x="880" y="466" text-anchor="middle" font-size="12" fill="#2c2c2a">control</text>
+  </g>
+
+  <!-- ============ FLASH ============ -->
+  <g id="flash">
+    <rect x="300" y="660" width="380" height="64" rx="8" fill="#eaf3de" stroke="#3b6d11" stroke-width="1"/>
+    <text x="490" y="688" text-anchor="middle" font-size="16" font-weight="600" fill="#27500a">S25FS256S Flash</text>
+    <text x="490" y="710" text-anchor="middle" font-size="12" fill="#27500a">SCK . CS# . IO0 . IO1 . IO2 . IO3</text>
+  </g>
+
+  <!-- ============ WIRES ============ -->
+
+  <!-- CPU -> regfile : APB -->
+  <line x1="150" y1="105" x2="198" y2="105" stroke="#888780" stroke-width="1.6" marker-end="url(#arrow)"/>
+  <text x="174" y="98" text-anchor="middle" font-size="11" fill="#5f5e5a">APB</text>
+
+  <!-- regfile -> FSM : ctrl_reg_i -->
+  <line x1="420" y1="120" x2="558" y2="120" stroke="#534ab7" stroke-width="1.6" marker-end="url(#arrowP)"/>
+  <text x="489" y="113" text-anchor="middle" font-size="11" fill="#534ab7">ctrl_reg_i</text>
+
+  <!-- regfile clk_div -> sck gen -->
+  <path d="M310 200 L310 255 L558 255" fill="none" stroke="#ba7517" stroke-width="1.4" marker-end="url(#arrowA)"/>
+  <text x="430" y="248" text-anchor="middle" font-size="11" fill="#854f0b">clk_div</text>
+
+  <!-- FSM -> sck gen : sck_en -->
+  <line x1="635" y1="200" x2="635" y2="228" stroke="#d85a30" stroke-width="1.4" marker-end="url(#arrowO)"/>
+  <text x="672" y="218" text-anchor="middle" font-size="11" fill="#993c1d">sck_en</text>
+
+  <!-- CPU data_i -> TX FIFO -->
+  <path d="M95 130 L95 345 L198 345" fill="none" stroke="#1d9e75" stroke-width="1.4" marker-end="url(#arrowG)"/>
+  <text x="140" y="338" text-anchor="middle" font-size="11" fill="#0f6e56">data_i</text>
+
+  <!-- TX FIFO -> TX shifter : tx_byte (domain crossing) -->
+  <line x1="420" y1="345" x2="558" y2="345" stroke="#1d9e75" stroke-width="1.4" marker-end="url(#arrowG)"/>
+  <text x="489" y="338" text-anchor="middle" font-size="11" fill="#0f6e56">tx_byte</text>
+
+  <!-- FSM -> TX shifter : load/shift -->
+  <path d="M675 200 L675 318" fill="none" stroke="#d85a30" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrowO)"/>
+  <text x="720" y="280" text-anchor="middle" font-size="11" fill="#993c1d">load/shift</text>
+
+  <!-- TX shifter -> IO mux : si_out -->
+  <path d="M710 345 L765 345 L765 360 L818 360" fill="none" stroke="#185fa5" stroke-width="1.4" marker-end="url(#arrowB)"/>
+  <text x="765" y="338" text-anchor="middle" font-size="11" fill="#0c447c">si_out</text>
+
+  <!-- IO mux -> RX unpacker : io_in -->
+  <path d="M818 440 L765 440 L765 440 L712 440" fill="none" stroke="#185fa5" stroke-width="1.4" marker-end="url(#arrowB)"/>
+  <text x="765" y="433" text-anchor="middle" font-size="11" fill="#0c447c">io_in</text>
+
+  <!-- RX unpacker -> RX FIFO : rx_byte (domain crossing) -->
+  <line x1="558" y1="440" x2="422" y2="440" stroke="#1d9e75" stroke-width="1.4" marker-end="url(#arrowG)"/>
+  <text x="489" y="433" text-anchor="middle" font-size="11" fill="#0f6e56">rx_byte</text>
+
+  <!-- RX FIFO -> CPU : data_o -->
+  <path d="M200 440 L120 440 L120 130" fill="none" stroke="#1d9e75" stroke-width="1.4" marker-end="url(#arrowG)"/>
+  <text x="135" y="300" text-anchor="middle" font-size="11" fill="#0f6e56">data_o</text>
+
+  <!-- FSM -> RX unpacker control -->
+  <path d="M690 200 L690 408" fill="none" stroke="#d85a30" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrowO)"/>
+
+  <!-- FSM -> IO mux : width select -->
+  <path d="M790 130 L900 130 L900 318" fill="none" stroke="#d85a30" stroke-width="1.4" marker-end="url(#arrowO)"/>
+  <text x="930" y="225" text-anchor="middle" font-size="11" fill="#993c1d">width</text>
+
+  <!-- SCK gen -> flash : SCK -->
+  <path d="M635 290 L635 620 L520 620 L520 658" fill="none" stroke="#854f0b" stroke-width="1.4" marker-end="url(#arrowA)"/>
+  <text x="635" y="615" text-anchor="middle" font-size="11" fill="#854f0b">SCK</text>
+
+  <!-- IO mux -> flash : IO0-3 -->
+  <path d="M880 500 L880 630 L600 630 L600 658" fill="none" stroke="#854f0b" stroke-width="1.4" marker-end="url(#arrowA)"/>
+  <text x="740" y="625" text-anchor="middle" font-size="11" fill="#854f0b">IO0-IO3</text>
+
+  <!-- FSM -> flash : CS# -->
+  <path d="M560 150 L530 150 L530 645 L420 645 L420 658" fill="none" stroke="#993c1d" stroke-width="1.4" marker-end="url(#arrowO)"/>
+  <text x="490" y="640" text-anchor="middle" font-size="11" fill="#993c1d">CS#</text>
+
+  <!-- ============ LEGEND ============ -->
+  <rect x="40" y="500" width="420" height="130" rx="8" fill="#fafafa" stroke="#ccc" stroke-width="1"/>
+  <text x="250" y="522" text-anchor="middle" font-size="13" font-weight="600" fill="#444">Wire colors</text>
+
+  <line x1="60" y1="542" x2="95" y2="542" stroke="#888780" stroke-width="2.5"/>
+  <text x="105" y="546" font-size="12" fill="#444">APB (CPU - regfile)</text>
+
+  <line x1="260" y1="542" x2="295" y2="542" stroke="#534ab7" stroke-width="2.5"/>
+  <text x="305" y="546" font-size="12" fill="#444">ctrl_reg_i (config)</text>
+
+  <line x1="60" y1="566" x2="95" y2="566" stroke="#1d9e75" stroke-width="2.5"/>
+  <text x="105" y="570" font-size="12" fill="#444">data (TX / RX)</text>
+
+  <line x1="260" y1="566" x2="295" y2="566" stroke="#d85a30" stroke-width="2.5"/>
+  <text x="305" y="570" font-size="12" fill="#444">FSM control</text>
+
+  <line x1="60" y1="590" x2="95" y2="590" stroke="#ba7517" stroke-width="2.5"/>
+  <text x="105" y="594" font-size="12" fill="#444">clk_div - SCK gen</text>
+
+  <line x1="260" y1="590" x2="295" y2="590" stroke="#185fa5" stroke-width="2.5"/>
+  <text x="305" y="594" font-size="12" fill="#444">shifter - IO</text>
+
+  <line x1="60" y1="614" x2="95" y2="614" stroke="#854f0b" stroke-width="2.5"/>
+  <text x="105" y="618" font-size="12" fill="#444">SCK / IO0-3 - flash</text>
+
+  <line x1="260" y1="614" x2="295" y2="614" stroke="#993c1d" stroke-width="2.5"/>
+  <text x="305" y="618" font-size="12" fill="#444">CS# - flash</text>
+
+  <!-- ============ NOTE ============ -->
+  <text x="490" y="750" text-anchor="middle" font-size="12" fill="#777" font-style="italic">Two clock domains joined only by the two CDC FIFOs (TX and RX). No other signal crosses the divider directly.</text>
+
+</svg>

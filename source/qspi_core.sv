@@ -1,5 +1,5 @@
-`include "package/qspi_pkg.sv"
 module qspi_core (
+    import qspi_pkg::*;
 
     input qspi_pkg::qspi_control_reg_t ctrl_reg_i,
 

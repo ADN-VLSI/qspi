@@ -5,180 +5,349 @@ module qspi_fsm (
     // Clock and Reset
     //=========================================================
     input  logic              clk_i,             // system clock
-    input  logic             arst_ni,            // active-low reset
+    input  logic              arst_ni,           // active-low async reset
 
     //=========================================================
     // Control interface (from top / CPU side)
     //=========================================================
-    input  logic              start_i,           // start a transaction (top asserts when fifo_count >= threshold)
-    input  logic              we_i,              // 1 = write transaction, 0 = read transaction
-    output logic              busy_o,            // high while FSM is running a transaction
+    input  logic              start_i,           // start a transaction
+    input  logic              we_i,              // 1 = write, 0 = read
+    output logic              busy_o,            // high while running
 
-    input logic               dummy_i;
+    input  logic              dummy_i,           // 1 = read needs dummy cycles
+
     //=========================================================
     // Configuration (from register file)
     //=========================================================
-    input  qspi_control_reg_t ctrl_reg_i,        // full register struct: opcodes, cfg, addr, counts
+    input  qspi_control_reg_t ctrl_reg_i,        // full register struct
 
     //=========================================================
     // SCK generator control
     //=========================================================
-    output logic              sck_en_o,          // enable serial clock generation during active phases
+    output logic              sck_en_o,          // enable serial clock
 
     //=========================================================
     // TX shifter interface
     //=========================================================
-    output logic [7:0]        tx_data_o,         // byte to send (muxed: register byte or FIFO byte)
-    output logic [1:0]        tx_width_o,        // 00 = single, 01 = dual, 10 = quad
-    output logic              tx_start_o,        // pulse: start shifting tx_data out
-    input  logic              tx_done_i,         // shifter asserts when one byte has been fully sent
+    output logic [7:0]        tx_data_o,         // byte to send
+    output logic [1:0]        tx_width_o,        // 00=single 01=dual 10=quad
+    output logic              tx_start_o,        // start shifting
+    input  logic              tx_done_i,         // one byte fully sent
 
     //=========================================================
     // RX unpacker interface
     //=========================================================
-    output logic              rx_en_o,           // enable capture during read data phase
-    output logic [1:0]        rx_width_o,        // 00 = single, 01 = dual, 10 = quad
-    input  logic [7:0]        rx_data_i,         // byte assembled by the unpacker
-    input  logic              rx_done_i,         // unpacker asserts when one byte has been received
+    output logic              rx_en_o,           // enable capture
+    output logic [1:0]        rx_width_o,        // 00=single 01=dual 10=quad
+    input  logic [7:0]        rx_data_i,         // assembled byte
+    input  logic              rx_done_i,         // one byte received
 
     //=========================================================
-    // TX FIFO interface (data source for the DATA phase)
+    // TX FIFO interface (data source for DATA phase)
     //=========================================================
-    output logic              tx_fifo_pop_o,     // pop one byte from TX FIFO
-    input  logic [7:0]        tx_fifo_data_i,    // current byte at TX FIFO output
-    input  logic              tx_fifo_empty_i,   // high when TX FIFO has no data
+    output logic              tx_fifo_pop_o,     // pop one byte
+    input  logic [7:0]        tx_fifo_data_i,    // current byte at FIFO out
+    input  logic              tx_fifo_empty_i,   // FIFO empty
 
     //=========================================================
     // RX FIFO interface (data sink for read data)
     //=========================================================
-    output logic              rx_fifo_push_o,    // push one received byte into RX FIFO
-    output logic [7:0]        rx_fifo_data_o,    // byte to push (comes from rx_data_i)
-    input  logic              rx_fifo_full_i,    // high when RX FIFO cannot accept more
+    output logic              rx_fifo_push_o,    // push one byte
+    output logic [7:0]        rx_fifo_data_o,    // byte to push
+    input  logic              rx_fifo_full_i,    // FIFO full
 
     //=========================================================
     // Flash chip select
     //=========================================================
-    output logic              cs_no,             // chip select to flash, active low
+    output logic              cs_no,             // chip select, active low
 
     //=========================================================
-    // WIP (Write In Progress) status, from RDSR polling
+    // WIP status
     //=========================================================
-    input  logic              wip_bit_i          // 1 = flash still busy writing, 0 = free
+    input  logic              wip_bit_i          // 1 = flash busy
 );
 
-    // ----- internal signals, state, counters go here -----
-
-
-
-
-
-        // ── state declaration ──
+    //---------------------------------------------------------
+    // State declaration
+    //---------------------------------------------------------
     typedef enum logic [3:0] {
-        IDLE_S,
-        WE_CMD_S,
-        CS_GAP1_S,
-        WCMD_S,
-        WADDR_S,
-        WMODE_S,
-        WDATA_S,
-        CS_GAP2_S,
-        WIP_S,
-        RCMD_S,
-        RADDR_S,
-        RMODE_S,
-        DUMMY_S,
-        RDATA_S
+        IDLE_S, WE_CMD_S, CS_GAP1_S, WCMD_S, WADDR_S, WMODE_S,
+        WDATA_S, CS_GAP2_S, WIP_S, RCMD_S, RADDR_S, RMODE_S,
+        DUMMY_S, RDATA_S
     } state_t;
 
     state_t state, next_state;
 
-    logic [2:0] addr_byte_cnt;
-    logic [2:0] waddr_byte_len;
+    //---------------------------------------------------------
+    // Internal signals
+    //---------------------------------------------------------
+    logic [2:0]  addr_byte_cnt;
+    logic [2:0]  data_byte_cnt;
+    logic [2:0]  tcs_cnt;
     logic [31:0] addr;
-    logic [2:0] data_byte_cnt, wdata_byte_len, rdata_byte_len, raddr_byte_len;
+    logic [2:0]  waddr_byte_len, raddr_byte_len;
+    logic [2:0]  wdata_byte_len, rdata_byte_len;
+
+    localparam int TCS = 3;   // CS-high cycles between separate pulses
+    localparam int DUMMY_CYCLES = 4; 
+
+    //---------------------------------------------------------
+    // Config extraction (combinational)
+    //---------------------------------------------------------
+    assign addr           = {ctrl_reg_i.ADDR3, ctrl_reg_i.ADDR2,
+                             ctrl_reg_i.ADDR1, ctrl_reg_i.ADDR0};
+    assign waddr_byte_len = ctrl_reg_i.WADDR_CMD;
+    assign wdata_byte_len = ctrl_reg_i.WDATA_CMD;
+    assign raddr_byte_len = ctrl_reg_i.RADDR_CMD;
+    assign rdata_byte_len = ctrl_reg_i.RDATA_CMD;
+
+    //---------------------------------------------------------
+    // State register
+    //---------------------------------------------------------
+    always_ff @(posedge clk_i or negedge arst_ni) begin
+        if (!arst_ni) state <= IDLE_S;
+        else          state <= next_state;
+    end
+    logic [3:0] dummy_cnt;
 
     always_ff @(posedge clk_i or negedge arst_ni) begin
-        if(!arst_ni) begin
-            state <= IDLE_S;
+        if (!arst_ni)
+            dummy_cnt <= '0;
+        else if (state == DUMMY_S)
+            dummy_cnt <= dummy_cnt + 1;    // প্রতি cycle বাড়াও
+        else
+            dummy_cnt <= '0;
+    end
+
+    //---------------------------------------------------------
+    // Address byte counter
+    //---------------------------------------------------------
+    always_ff @(posedge clk_i or negedge arst_ni) begin
+        if (!arst_ni)
             addr_byte_cnt <= '0;
-            addr <= {ctrl_reg_i.ADDR0, ctrl_reg_i.ADDR1, ctrl_reg_i.ADDR2, ctrl_reg_i.ADDR3};
-            waddr_byte_len <= ctrl_reg_i.WADDR_CMD;
-            wdata_byte_len <= ctrl_reg_i.WDATA_CMD;
-            raddr_byte_len <= ctrl_reg_i.RADDR_CMD;
-            rdata_byte_len <= ctrl_reg_i.RDATA_CMD;
-
-
-        end else begin 
-            state <= next_state;
-
-            case(state)
-                ADDR_S: begin
-                    if() 
-                end
-
-
-
-            endcase
-        end 
+        else if (state == WADDR_S || state == RADDR_S) begin
+            if (tx_done_i) addr_byte_cnt <= addr_byte_cnt + 1;
+        end
+        else
+            addr_byte_cnt <= '0;
     end
 
-
-    always_ff (posedge clk_i or negedge arst_ni) begin
-        if (!arst_ni) addr_byte_cnt <= '0;
-        else 
+    //---------------------------------------------------------
+    // Data byte counter
+    //---------------------------------------------------------
+    always_ff @(posedge clk_i or negedge arst_ni) begin
+        if (!arst_ni)
+            data_byte_cnt <= '0;
+        else if (state == WDATA_S) begin
+            if (tx_done_i) data_byte_cnt <= data_byte_cnt + 1;
+        end
+        else if (state == RDATA_S) begin
+            if (rx_done_i) data_byte_cnt <= data_byte_cnt + 1;
+        end
+        else
+            data_byte_cnt <= '0;
     end
 
-    // NEXT STATE COMBINATIONAL
+    //---------------------------------------------------------
+    // CS-gap cycle counter
+    //---------------------------------------------------------
+    always_ff @(posedge clk_i or negedge arst_ni) begin
+        if (!arst_ni)
+            tcs_cnt <= '0;
+        else if (state == CS_GAP1_S || state == CS_GAP2_S)
+            tcs_cnt <= tcs_cnt + 1;
+        else
+            tcs_cnt <= '0;
+    end
+
+    //---------------------------------------------------------
+    // Next-state logic
+    //---------------------------------------------------------
     always_comb begin
-        case(state) 
-            IDLE_S: begin 
-                if(start) begin
-                    if(we_i && ctrl_reg_i.WE_CFG[2]== 1'b1) begin
-                        next_state = WE_CMD_S;
-                    end else if(!we_i) next_state = RCMD_S;
-                else next_state = IDLE_S;    
-                    end
-                end
-            WE_CMD_S: begin
-                if(tx_done_i) next_state = CS_GAP1_S;
-            end
-            
-            CS_GAP1_S: if(tcs == cs_cnt - 1) next_state = WCMD_S;
-            WCMD_S: if(tx_done_i) next_state <= WAADR_S;
-            WADDR_S: if(addr_byte_cnt == (waddr_byte_len - 1)) begin
-                if(ctrl_reg_i.WMODE_CFG[2]) begin
-                    next_state = WMODE_S;
-                end else next_state = WDATA_S;
-            end
-            WDATA_S: begin
-                if(data_byte_cnt == (wdata_byte_len - 1)) next_state <= CS_GAP2_S;
-            end
-            CS_GAP2_S: begin 
-                if((tcs == cs_cnt - 1)) next_state = WIP_S;
-            end
-            WIP_S: begin
-                if(rx_done_i && rx_data_i[0] == 1) begin 
-                    next_state = WIP;
-                end else next_state = IDLE_S; 
-            end
-            RCMD_S: if (tx_done_i) next_state = RADDR_S;
-            RADDRS: begin 
-                if(addr_byte_cnt == (raddr_byte_len - 1)) begin
-                    if(ctrl_reg_i.WMODE_CFG[2]) begin
-                        next_state = RMODE_S;
-                    end else if (dummy_i) next_state = DUMMY_S;
-                    else next_state = RDATA_S;
-                end
-            end
-            DUMMY_S: if(tx_done_i) begin 
-                next_state = RDATA_S;
-            end
-            RDATA_S: if((data_byte_cnt == (rdata_byte_len - 1)) && rx_done_i) next_state <= IDLE_S;
-            
+        next_state = state;   // default: stay (prevents latch)
 
+        case (state)
+            IDLE_S: begin
+                if (start_i) begin
+                    if (we_i && ctrl_reg_i.WE_CFG[2])
+                        next_state = WE_CMD_S;
+                    else if (!we_i)
+                        next_state = RCMD_S;
+                end
+            end
+
+            WE_CMD_S:  if (tx_done_i)          next_state = CS_GAP1_S;
+            CS_GAP1_S: if (tcs_cnt == TCS - 1) next_state = WCMD_S;
+            WCMD_S:    if (tx_done_i)          next_state = WADDR_S;
+
+            WADDR_S: begin
+                if (tx_done_i && (addr_byte_cnt == waddr_byte_len - 1)) begin
+                    if (ctrl_reg_i.WMODE_CFG[2]) next_state = WMODE_S;
+                    else                         next_state = WDATA_S;
+                end
+            end
+
+            WMODE_S: if (tx_done_i) next_state = WDATA_S;
+
+            WDATA_S: begin
+                if (tx_done_i && (data_byte_cnt == wdata_byte_len - 1))
+                    next_state = CS_GAP2_S;
+            end
+
+            CS_GAP2_S: if (tcs_cnt == TCS - 1) next_state = WIP_S;
+
+            WIP_S: begin
+                if (rx_done_i) begin
+                    if (rx_data_i[0]) next_state = CS_GAP2_S;  // busy: poll again
+                    else              next_state = IDLE_S;     // done
+                end
+            end
+
+            RCMD_S: if (tx_done_i) next_state = RADDR_S;
+
+            RADDR_S: begin
+                if (tx_done_i && (addr_byte_cnt == raddr_byte_len - 1)) begin
+                    if (ctrl_reg_i.RMODE_CFG[2])  next_state = RMODE_S;
+                    else if (dummy_i)             next_state = DUMMY_S;
+                    else                          next_state = RDATA_S;
+                end
+            end
+
+            RMODE_S: begin
+                if (tx_done_i) begin
+                    if (dummy_i) next_state = DUMMY_S;
+                    else         next_state = RDATA_S;
+                end
+            end
+
+            DUMMY_S: if (dummy_cnt == DUMMY_CYCLES - 1) next_state = RDATA_S;
+            RDATA_S: begin
+                if (rx_done_i && (data_byte_cnt == rdata_byte_len - 1))
+                    next_state = IDLE_S;
+            end
+
+            default: next_state = IDLE_S;
         endcase
     end
 
+    //---------------------------------------------------------
+    // Output logic
+    //---------------------------------------------------------
+    always_comb begin
+        // defaults
+        busy_o         = 1'b1;
+        sck_en_o       = 1'b0;
+        tx_data_o      = 8'h00;
+        tx_width_o     = 2'b00;
+        tx_start_o     = 1'b0;
+        rx_en_o        = 1'b0;
+        rx_width_o     = 2'b00;
+        tx_fifo_pop_o  = 1'b0;
+        rx_fifo_push_o = 1'b0;
+        rx_fifo_data_o = rx_data_i;
+        cs_no          = 1'b1;          // default: CS high (deselected)
 
+        case (state)
+            IDLE_S: begin
+                busy_o = 1'b0;
+                cs_no  = 1'b1;
+            end
+
+            CS_GAP1_S,
+            CS_GAP2_S: begin
+                cs_no = 1'b1;           // CS high between pulses
+            end
+
+            WE_CMD_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = ctrl_reg_i.WE_CMD;
+                tx_width_o = ctrl_reg_i.WE_CFG[1:0];
+                tx_start_o = 1'b1;
+            end
+
+            WCMD_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = ctrl_reg_i.WCMD_CMD;
+                tx_width_o = ctrl_reg_i.WCMD_CFG[1:0];
+                tx_start_o = 1'b1;
+            end
+
+            WADDR_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = addr[ (waddr_byte_len - 1 - addr_byte_cnt)*8 +: 8 ];
+                tx_width_o = ctrl_reg_i.WADDR_CFG[1:0];
+                tx_start_o = 1'b1;
+            end
+
+            WMODE_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = ctrl_reg_i.WMODE_CMD;
+                tx_width_o = ctrl_reg_i.WMODE_CFG[1:0];
+                tx_start_o = 1'b1;
+            end
+
+            WDATA_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = tx_fifo_data_i;            // data from FIFO
+                tx_width_o = ctrl_reg_i.WDATA_CFG[1:0];
+                tx_start_o = 1'b1;
+                if (tx_done_i) tx_fifo_pop_o = 1'b1;    // pop after byte sent
+            end
+
+            WIP_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = 8'h05;                     // RDSR opcode
+                tx_width_o = 2'b00;                     // single
+                tx_start_o = 1'b1;
+                rx_en_o    = 1'b1;                      // capture status byte
+            end
+
+            RCMD_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = ctrl_reg_i.RCMD_CMD;
+                tx_width_o = ctrl_reg_i.RCMD_CFG[1:0];
+                tx_start_o = 1'b1;
+            end
+
+            RADDR_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = addr[ (raddr_byte_len - 1 - addr_byte_cnt)*8 +: 8 ];
+                tx_width_o = ctrl_reg_i.RADDR_CFG[1:0];
+                tx_start_o = 1'b1;
+            end
+
+            RMODE_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                tx_data_o  = ctrl_reg_i.RMODE_CMD;
+                tx_width_o = ctrl_reg_i.RMODE_CFG[1:0];
+                tx_start_o = 1'b1;
+            end
+
+            DUMMY_S: begin
+                cs_no    = 1'b0;
+                sck_en_o = 1'b1;                        // clock runs only
+            end
+
+            RDATA_S: begin
+                cs_no          = 1'b0;
+                sck_en_o       = 1'b1;
+                rx_en_o        = 1'b1;
+                rx_width_o     = ctrl_reg_i.RDATA_CFG[1:0];
+                rx_fifo_data_o = rx_data_i;
+                if (rx_done_i) rx_fifo_push_o = 1'b1;   // push after byte received
+            end
+
+            default: ;
+        endcase
+    end
 
 endmodule

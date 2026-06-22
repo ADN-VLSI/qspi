@@ -2,15 +2,21 @@ export SHELL=/bin/bash
 
 .DEFAULT_GOAL := sim
 
-TOP := basic_spi_tb
+TOP := tx_shifter_tb
 
 ROOT_DIR  := $(CURDIR)
 BUILD_DIR := $(ROOT_DIR)/build
 LOG_DIR   := $(ROOT_DIR)/log
 
-FILES += -i $(ROOT_DIR)/include
+FILES += $(ROOT_DIR)/source/qspi_pkg.sv
+
+# third party
 FILES += $(ROOT_DIR)/third_party/s25fs256s.v
-FILES += $(shell find $(ROOT_DIR)/source -name "*.sv")
+
+# rest of source, but EXCLUDE the package (already added)
+FILES += $(shell find $(ROOT_DIR)/source -name "tx_shifter.sv")
+
+# testbench
 FILES += $(shell find $(ROOT_DIR)/tb -name "*.sv")
 
 EWLH := | grep -iE "error:|warning:|" --color=auto
