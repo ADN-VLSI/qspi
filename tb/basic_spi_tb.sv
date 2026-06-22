@@ -116,6 +116,7 @@ module basic_spi_tb;
   logic sck = '1;
   logic mosi = '1;
   logic miso;
+  logic [7:0] rx0, rx1, rx2, rx3;
 
   assign CSNeg = csn;
   assign SCK = sck;
@@ -137,6 +138,17 @@ module basic_spi_tb;
       #(tSCK / 2);
       sck <= 1;
       #(tSCK / 2);
+    end
+  endtask
+  // recv task — 8 clock cycle দেয়, MISO থেকে bit collect করে
+  task recv(output logic [7:0] rx_byte);
+    rx_byte = 8'h00;
+    for (int i = 7; i >= 0; i--) begin
+        sck = 0; #(tSCK / 2);;
+        mosi = 1'b0;          // don't care during read
+        sck = 1; rx_byte[i] = miso;  #(tSCK / 2);
+                 // rising edge — slave এখন MISO drive করে
+            // ← এখানেই bit capture হয়
     end
   endtask
 
@@ -176,10 +188,11 @@ module basic_spi_tb;
     send('h60); // ADDR BYTE1
     send('h11); // ADDR BYTE0
     send('h00); // < DUMMY
-    send('h00); // DATA BYTE0
-    send('h00); // DATA BYTE1
-    send('h00); // DATA BYTE2
-    send('h00); // DATA BYTE3
+    recv(rx0); // DATA BYTE0
+    recv(rx1); // DATA BYTE1
+    recv(rx2); // DATA BYTE2
+    recv(rx3); // DATA BYTE3
+    $display("Received: %02X %02X %02X %02X", rx0, rx1, rx2, rx3);
     set_cs(1);
 
     #1us;
