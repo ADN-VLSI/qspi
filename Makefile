@@ -2,7 +2,7 @@ export SHELL=/bin/bash
 
 .DEFAULT_GOAL := sim
 
-TOP := tx_shifter_tb
+TOP := rx_packer_tb
 
 ROOT_DIR  := $(CURDIR)
 BUILD_DIR := $(ROOT_DIR)/build
@@ -14,7 +14,7 @@ FILES += $(ROOT_DIR)/source/qspi_pkg.sv
 FILES += $(ROOT_DIR)/third_party/s25fs256s.v
 
 # rest of source, but EXCLUDE the package (already added)
-FILES += $(shell find $(ROOT_DIR)/source -name "tx_shifter.sv")
+FILES += $(shell find $(ROOT_DIR)/source -name "rx_packer_adnan.sv")
 
 # testbench
 FILES += $(shell find $(ROOT_DIR)/tb -name "*.sv")

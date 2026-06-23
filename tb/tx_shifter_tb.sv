@@ -74,21 +74,21 @@ end
 
         repeat (3) @(posedge clk_i);
         arst_ni = 1;
-        @(posedge clk_i);
+        repeat (3) @(posedge clk_i);
 
         //=================================================
         // TEST 1: single mode, send 0xB5 = 1011_0101
         //=================================================
         $display("\n==== TEST 1: SINGLE, 0xB5 ====");
         $display("expect io_o[0]: 1 0 1 1 0 1 0 1 (MSB first)");
-        tx_data_i  = 8'hB5;
-        tx_width_i = 2'b00;       // single
-        tx_start_i = 1'b1;
-        @(posedge clk_i);
-        tx_start_i = 1'b0;
+        tx_data_i  <= 8'hB5;
+        tx_width_i <= 2'b00;       // single
+        tx_start_i <= 1'b1;
+        
 
         wait (tx_done_o == 1'b1);
         @(posedge clk_i);
+        tx_start_i <= 1'b0;
         $display("==== TEST 1 done ====\n");
 
         repeat (5) @(posedge clk_i);
@@ -100,12 +100,12 @@ end
         $display("expect io_o: 1011 then 0101");
         tx_data_i  = 8'hB5;
         tx_width_i = 2'b10;       // quad
-        tx_start_i = 1'b1;
-        @(posedge clk_i);
-        tx_start_i = 1'b0;
+        tx_start_i <= 1'b1;
+
 
         wait (tx_done_o == 1'b1);
         @(posedge clk_i);
+        tx_start_i <= 1'b0;
         $display("==== TEST 2 done ====\n");
 
         repeat (5) @(posedge clk_i);

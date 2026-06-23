@@ -23,6 +23,9 @@ logic       shifting;
 logic [2:0] cnt;
 logic [2:0] shift_amt;
 
+logic tx_start_d;
+wire tx_start_pulse = tx_start_i && !tx_start_d;
+
 always_ff @(posedge clk_i or negedge arst_ni) begin
     if (!arst_ni) begin
         cyc_cnt   <= '0;
@@ -30,25 +33,24 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
         tx_done_o <= '0;
         io_o      <= '0;
         shifting  <= '0;
+        tx_start_d <= 1'b0;
     end
     else begin
-        tx_done_o <= 1'b0;                    // default low
+        tx_done_o <= 1'b0;                   // default low
+        tx_start_d <= tx_start_i;
 
-        if (tx_start_i) begin
+        if (tx_start_pulse && !shifting) begin
             shift_reg <= tx_data_i;
             shifting  <= 1'b1;
             cyc_cnt   <= '0;
         end
         else if (shifting && (sck_pulse_i)) begin
-        // আগে shift করো (সব pulse এ)
             case (tx_width_i)
                 2'b00: io_o[0]   <= shift_reg[7];
                 2'b01: io_o[1:0] <= shift_reg[7:6];
                 2'b10: io_o[3:0] <= shift_reg[7:4];
             endcase
             shift_reg <= shift_reg << shift_amt;
-
-            // তারপর check — এটাই কি শেষ bit ছিল?
             if (cyc_cnt == cnt) begin
                 shifting  <= 1'b0;
                 tx_done_o <= 1'b1;
@@ -79,7 +81,7 @@ always_comb begin
             default: io_oe_o = 4'b0001;
         endcase
     end else begin
-        io_oe_o = 4'b0000;    // idle এ drive না
+        io_oe_o = 4'b0000;
     end
 end
 endmodule
