@@ -61,6 +61,7 @@
                     logic [2:0] RMODE_CFG;
                     logic [7:0] RDATA_CMD;
                     logic [1:0] RDATA_CFG;
+                    logic       START;
                   } qspi_control_reg_t;
 
         endpackage

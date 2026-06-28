@@ -14,7 +14,7 @@ FILES += $(ROOT_DIR)/source/qspi_pkg.sv
 FILES += $(ROOT_DIR)/third_party/s25fs256s.v
 
 # rest of source, but EXCLUDE the package (already added)
-FILES += $(shell find $(ROOT_DIR)/source -name "rx_packer_adnan.sv")
+FILES += $(shell find $(ROOT_DIR)/source -name "*.sv")
 
 # testbench
 FILES += $(shell find $(ROOT_DIR)/tb -name "*.sv")

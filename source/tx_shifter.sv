@@ -39,7 +39,7 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
         tx_done_o <= 1'b0;                   // default low
         tx_start_d <= tx_start_i;
 
-        if (tx_start_pulse && !shifting) begin
+        if (tx_start_i && !shifting) begin
             shift_reg <= tx_data_i;
             shifting  <= 1'b1;
             cyc_cnt   <= '0;

@@ -47,24 +47,24 @@ module qspi_fsm (
     //=========================================================
     output logic              tx_fifo_pop_o,     // pop one byte
     input  logic [7:0]        tx_fifo_data_i,    // current byte at FIFO out
-    input  logic              tx_fifo_empty_i,   // FIFO empty
+   // input  logic              tx_fifo_empty_i,   // FIFO empty
 
     //=========================================================
     // RX FIFO interface (data sink for read data)
     //=========================================================
     output logic              rx_fifo_push_o,    // push one byte
     output logic [7:0]        rx_fifo_data_o,    // byte to push
-    input  logic              rx_fifo_full_i,    // FIFO full
+   // input  logic              rx_fifo_full_i,    // FIFO full
 
     //=========================================================
     // Flash chip select
     //=========================================================
-    output logic              cs_no,             // chip select, active low
+    output logic              cs_no             // chip select, active low
 
     //=========================================================
     // WIP status
     //=========================================================
-    input  logic              wip_bit_i          // 1 = flash busy
+    //input  logic              wip_bit_i          // 1 = flash busy
 );
 
     //---------------------------------------------------------
@@ -88,7 +88,7 @@ module qspi_fsm (
     logic [2:0]  waddr_byte_len, raddr_byte_len;
     logic [2:0]  wdata_byte_len, rdata_byte_len;
 
-    localparam int TCS = 3;   // CS-high cycles between separate pulses
+    localparam int TCS = 5;   // CS-high cycles between separate pulses
     localparam int DUMMY_CYCLES = 4; 
 
     //---------------------------------------------------------

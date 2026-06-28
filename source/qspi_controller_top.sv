@@ -1,5 +1,5 @@
-modeule qspi_controller_top(
-    input clk_i
+module qspi_controller_top(
+//    input clk_i
 
 );
 
