@@ -22,9 +22,9 @@ logic [7:0] shift_reg;
 logic       shifting;
 logic [2:0] cnt;
 logic [2:0] shift_amt;
+logic       flag;
 
 logic tx_start_d;
-wire tx_start_pulse = tx_start_i && !tx_start_d;
 
 always_ff @(posedge clk_i or negedge arst_ni) begin
     if (!arst_ni) begin
@@ -46,9 +46,9 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
         end
         else if (shifting && (sck_pulse_i)) begin
             case (tx_width_i)
-                2'b00: io_o[0]   <= shift_reg[7];
-                2'b01: io_o[1:0] <= shift_reg[7:6];
-                2'b10: io_o[3:0] <= shift_reg[7:4];
+                2'b00: begin io_o[0]   <= shift_reg[7];   io_oe_o <= 4'b0001; end
+                2'b01: begin io_o[1:0] <= shift_reg[7:6]; io_oe_o <= 4'b0011; end
+                2'b10: begin io_o[3:0] <= shift_reg[7:4]; io_oe_o <= 4'b1111; end
             endcase
             shift_reg <= shift_reg << shift_amt;
             if (cyc_cnt == cnt) begin
@@ -58,6 +58,8 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
             end else begin
                 cyc_cnt <= cyc_cnt + 1;
             end
+        end  else if (!shifting) begin
+                io_oe_o <= '0;        // ← byte শেষ/idle → release (এটা যোগ করো)
         end
     end
 end
@@ -70,7 +72,7 @@ always_comb begin
         default: begin cnt = 3'd7; shift_amt = 3'd1; end
     endcase
 end
-
+/*
 // io_oe combinational
 always_comb begin
     if (shifting) begin
@@ -84,5 +86,6 @@ always_comb begin
         io_oe_o = 4'b0000;
     end
 end
+*/
 endmodule
  

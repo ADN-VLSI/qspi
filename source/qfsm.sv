@@ -4,76 +4,74 @@ module qspi_fsm (
     //=========================================================
     // Clock and Reset
     //=========================================================
-    input  logic              clk_i,             // system clock
-    input  logic              arst_ni,           // active-low async reset
+    input  logic              clk_i,
+    input  logic              arst_ni,
 
     //=========================================================
-    // Control interface (from top / CPU side)
+    // Control interface
     //=========================================================
-    input  logic              start_i,           // start a transaction
-    input  logic              we_i,              // 1 = write, 0 = read
-    output logic              busy_o,            // high while running
+    input  logic              start_i,
+    input  logic              we_i,
+    output logic              busy_o,
+    input  logic              dummy_i,
 
-    input  logic              dummy_i,           // 1 = read needs dummy cycles
-
     //=========================================================
-    // Configuration (from register file)
+    // Configuration
     //=========================================================
-    input  qspi_control_reg_t ctrl_reg_i,        // full register struct
+    input  qspi_control_reg_t ctrl_reg_i,
 
     //=========================================================
     // SCK generator control
     //=========================================================
-    output logic              sck_en_o,          // enable serial clock
+    output logic              sck_en_o,
 
     //=========================================================
     // TX shifter interface
     //=========================================================
-    output logic [7:0]        tx_data_o,         // byte to send
-    output logic [1:0]        tx_width_o,        // 00=single 01=dual 10=quad
-    output logic              tx_start_o,        // start shifting
-    input  logic              tx_done_i,         // one byte fully sent
+    output logic [7:0]        tx_data_o,
+    output logic [1:0]        tx_width_o,
+    output logic              tx_start_o,
+    input  logic              tx_done_i,
 
     //=========================================================
     // RX unpacker interface
     //=========================================================
-    output logic              rx_en_o,           // enable capture
-    output logic [1:0]        rx_width_o,        // 00=single 01=dual 10=quad
-    input  logic [7:0]        rx_data_i,         // assembled byte
-    input  logic              rx_done_i,         // one byte received
+    output logic              rx_en_o,
+    output logic [1:0]        rx_width_o,
+    input  logic [7:0]        rx_data_i,
+    input  logic              rx_done_i,
 
     //=========================================================
-    // TX FIFO interface (data source for DATA phase)
+    // TX FIFO interface
     //=========================================================
-    output logic              tx_fifo_pop_o,     // pop one byte
-    input  logic [7:0]        tx_fifo_data_i,    // current byte at FIFO out
-   // input  logic              tx_fifo_empty_i,   // FIFO empty
+    output logic              tx_fifo_pop_o,
+    input  logic [7:0]        tx_fifo_data_i,
 
     //=========================================================
-    // RX FIFO interface (data sink for read data)
+    // RX FIFO interface
     //=========================================================
-    output logic              rx_fifo_push_o,    // push one byte
-    output logic [7:0]        rx_fifo_data_o,    // byte to push
-   // input  logic              rx_fifo_full_i,    // FIFO full
+    output logic              rx_fifo_push_o,
+    output logic [7:0]        rx_fifo_data_o,
 
     //=========================================================
     // Flash chip select
     //=========================================================
-    output logic              cs_no             // chip select, active low
-
-    //=========================================================
-    // WIP status
-    //=========================================================
-    //input  logic              wip_bit_i          // 1 = flash busy
+    output logic              cs_no
 );
 
     //---------------------------------------------------------
     // State declaration
+    //   WIP split into two phases:
+    //     WIP_CMD_S  : send RDSR opcode (0x05)  -> TX only
+    //     WIP_DATA_S : read status byte         -> RX only
+    //   This keeps the command (TX) and status (RX) phases
+    //   sequential, instead of asserting tx_start and rx_en
+    //   at the same time.
     //---------------------------------------------------------
     typedef enum logic [3:0] {
         IDLE_S, WE_CMD_S, CS_GAP1_S, WCMD_S, WADDR_S, WMODE_S,
-        WDATA_S, CS_GAP2_S, WIP_S, RCMD_S, RADDR_S, RMODE_S,
-        DUMMY_S, RDATA_S
+        WDATA_S, CS_GAP2_S, WIP_CMD_S, WIP_DATA_S, RCMD_S, RADDR_S,
+        RMODE_S, DUMMY_S, RDATA_S
     } state_t;
 
     state_t state, next_state;
@@ -88,11 +86,11 @@ module qspi_fsm (
     logic [2:0]  waddr_byte_len, raddr_byte_len;
     logic [2:0]  wdata_byte_len, rdata_byte_len;
 
-    localparam int TCS = 5;   // CS-high cycles between separate pulses
-    localparam int DUMMY_CYCLES = 4; 
+    localparam int TCS = 5;
+    localparam int DUMMY_CYCLES = 4;
 
     //---------------------------------------------------------
-    // Config extraction (combinational)
+    // Config extraction
     //---------------------------------------------------------
     assign addr           = {ctrl_reg_i.ADDR3, ctrl_reg_i.ADDR2,
                              ctrl_reg_i.ADDR1, ctrl_reg_i.ADDR0};
@@ -108,15 +106,12 @@ module qspi_fsm (
         if (!arst_ni) state <= IDLE_S;
         else          state <= next_state;
     end
-    logic [3:0] dummy_cnt;
 
+    logic [3:0] dummy_cnt;
     always_ff @(posedge clk_i or negedge arst_ni) begin
-        if (!arst_ni)
-            dummy_cnt <= '0;
-        else if (state == DUMMY_S)
-            dummy_cnt <= dummy_cnt + 1;    // প্রতি cycle বাড়াও
-        else
-            dummy_cnt <= '0;
+        if (!arst_ni)            dummy_cnt <= '0;
+        else if (state == DUMMY_S) dummy_cnt <= dummy_cnt + 1;
+        else                     dummy_cnt <= '0;
     end
 
     //---------------------------------------------------------
@@ -164,7 +159,7 @@ module qspi_fsm (
     // Next-state logic
     //---------------------------------------------------------
     always_comb begin
-        next_state = state;   // default: stay (prevents latch)
+        next_state = state;
 
         case (state)
             IDLE_S: begin
@@ -194,9 +189,13 @@ module qspi_fsm (
                     next_state = CS_GAP2_S;
             end
 
-            CS_GAP2_S: if (tcs_cnt == TCS - 1) next_state = WIP_S;
+            CS_GAP2_S: if (tcs_cnt == TCS - 1) next_state = WIP_CMD_S;
 
-            WIP_S: begin
+            // WIP phase 1: send RDSR opcode (TX only)
+            WIP_CMD_S: if (tx_done_i) next_state = WIP_DATA_S;
+
+            // WIP phase 2: read status byte (RX only)
+            WIP_DATA_S: begin
                 if (rx_done_i) begin
                     if (rx_data_i[0]) next_state = CS_GAP2_S;  // busy: poll again
                     else              next_state = IDLE_S;     // done
@@ -221,6 +220,7 @@ module qspi_fsm (
             end
 
             DUMMY_S: if (dummy_cnt == DUMMY_CYCLES - 1) next_state = RDATA_S;
+
             RDATA_S: begin
                 if (rx_done_i && (data_byte_cnt == rdata_byte_len - 1))
                     next_state = IDLE_S;
@@ -234,7 +234,6 @@ module qspi_fsm (
     // Output logic
     //---------------------------------------------------------
     always_comb begin
-        // defaults
         busy_o         = 1'b1;
         sck_en_o       = 1'b0;
         tx_data_o      = 8'h00;
@@ -245,7 +244,7 @@ module qspi_fsm (
         tx_fifo_pop_o  = 1'b0;
         rx_fifo_push_o = 1'b0;
         rx_fifo_data_o = rx_data_i;
-        cs_no          = 1'b1;          // default: CS high (deselected)
+        cs_no          = 1'b1;
 
         case (state)
             IDLE_S: begin
@@ -255,7 +254,7 @@ module qspi_fsm (
 
             CS_GAP1_S,
             CS_GAP2_S: begin
-                cs_no = 1'b1;           // CS high between pulses
+                cs_no = 1'b1;
             end
 
             WE_CMD_S: begin
@@ -293,19 +292,29 @@ module qspi_fsm (
             WDATA_S: begin
                 cs_no      = 1'b0;
                 sck_en_o   = 1'b1;
-                tx_data_o  = tx_fifo_data_i;            // data from FIFO
+                tx_data_o  = tx_fifo_data_i;
                 tx_width_o = ctrl_reg_i.WDATA_CFG[1:0];
                 tx_start_o = 1'b1;
-                if (tx_done_i) tx_fifo_pop_o = 1'b1;    // pop after byte sent
+                if (tx_done_i) tx_fifo_pop_o = 1'b1;
             end
 
-            WIP_S: begin
+            // WIP phase 1: send RDSR opcode only (TX)
+            WIP_CMD_S: begin
                 cs_no      = 1'b0;
                 sck_en_o   = 1'b1;
-                tx_data_o  = 8'h05;                     // RDSR opcode
-                tx_width_o = 2'b00;                     // single
+                tx_data_o  = 8'h05;        // RDSR
+                tx_width_o = 2'b00;        // single
                 tx_start_o = 1'b1;
-                rx_en_o    = 1'b1;                      // capture status byte
+                // rx_en_o stays 0 here
+            end
+
+            // WIP phase 2: read status byte only (RX)
+            WIP_DATA_S: begin
+                cs_no      = 1'b0;
+                sck_en_o   = 1'b1;
+                rx_en_o    = 1'b1;         // capture status
+                rx_width_o = 2'b00;        // single
+                // tx_start_o stays 0 here
             end
 
             RCMD_S: begin
@@ -334,7 +343,7 @@ module qspi_fsm (
 
             DUMMY_S: begin
                 cs_no    = 1'b0;
-                sck_en_o = 1'b1;                        // clock runs only
+                sck_en_o = 1'b1;
             end
 
             RDATA_S: begin
@@ -343,7 +352,7 @@ module qspi_fsm (
                 rx_en_o        = 1'b1;
                 rx_width_o     = ctrl_reg_i.RDATA_CFG[1:0];
                 rx_fifo_data_o = rx_data_i;
-                if (rx_done_i) rx_fifo_push_o = 1'b1;   // push after byte received
+                if (rx_done_i) rx_fifo_push_o = 1'b1;
             end
 
             default: ;

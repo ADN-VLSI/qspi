@@ -41,7 +41,7 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
         end
         else if (shifting && (sck_pulse_i)) begin
             case(rx_width_i)
-                2'b00: shift_reg <= {shift_reg[6:0], io_i[0]};
+                2'b00: shift_reg <= {shift_reg[6:0], io_i[1]};
                 2'b01: shift_reg <= {shift_reg[5:0], io_i[1:0]};
                 2'b10: shift_reg <= {shift_reg[3:0], io_i[3:0]};
                 default:shift_reg <= {shift_reg[6:0],io_i[1]};
@@ -51,10 +51,10 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
                 rx_done_o <= 1'b1;
                 cyc_cnt   <= '0;
             case(rx_width_i)
-                2'b00: rx_data_o <= {shift_reg[6:0], io_i[0]};
+                2'b00: rx_data_o <= {shift_reg[6:0], io_i[1]};
                 2'b01: rx_data_o <= {shift_reg[5:0], io_i[1:0]};
                 2'b10: rx_data_o <= {shift_reg[3:0], io_i[3:0]};
-                default:shift_reg <= {shift_reg[6:0],io_i[1]};
+                default:rx_data_o <= {shift_reg[6:0],io_i[1]};
             endcase
 
             end else cyc_cnt <= cyc_cnt + 1;

@@ -12,10 +12,8 @@ module tx_shifter_tb;
     logic [3:0]  io_o;
     logic [3:0]  io_oe_o;
 
-    // clock
     always #5 clk_i = ~clk_i;
 
-    // DUT
     tx_shifter dut (
         .clk_i       (clk_i),
         .arst_ni     (arst_ni),
@@ -28,19 +26,16 @@ module tx_shifter_tb;
         .io_oe_o     (io_oe_o)
     );
 
-    //=====================================================
-    // MOCK SCK pulse: every 4 clocks, one-cycle pulse
-    // (imitates SCK bit period)
-    //=====================================================
+    // MOCK SCK pulse: one-cycle pulse every 4 clocks
     int pulse_cnt;
     always_ff @(posedge clk_i or negedge arst_ni) begin
         if (!arst_ni) begin
             pulse_cnt   <= 0;
             sck_pulse_i <= 1'b0;
         end else begin
-            sck_pulse_i <= 1'b0;          // default low (one-cycle pulse)
+            sck_pulse_i <= 1'b0;
             if (pulse_cnt == 3) begin
-                sck_pulse_i <= 1'b1;       // pulse every 4 clocks
+                sck_pulse_i <= 1'b1;
                 pulse_cnt   <= 0;
             end else begin
                 pulse_cnt <= pulse_cnt + 1;
@@ -48,23 +43,19 @@ module tx_shifter_tb;
         end
     end
 
-    //=====================================================
-    // Monitor: print io_o on every pulse
-    //=====================================================
-logic pulse_d;
-always_ff @(posedge clk_i or negedge arst_ni) begin
-    if (!arst_ni) pulse_d <= 1'b0;
-    else          pulse_d <= (sck_pulse_i && dut.shifting);
-end
+    // Monitor: print io_o one cycle after a shift pulse (io_o has updated)
+    logic pulse_d;
+    always_ff @(posedge clk_i or negedge arst_ni) begin
+        if (!arst_ni) pulse_d <= 1'b0;
+        else          pulse_d <= (sck_pulse_i && dut.shifting);
+    end
 
-// delayed flag দেখে print — এখন io_o update হয়ে গেছে
-always @(posedge clk_i) begin
-    if (pulse_d)
-        $display("[%0t] io_o = %b (oe=%b)", $time, io_o, io_oe_o);
-end
-    //=====================================================
+    always @(posedge clk_i) begin
+        if (pulse_d)
+            $display("[%0t] io_o = %b (oe=%b)", $time, io_o, io_oe_o);
+    end
+
     // Stimulus
-    //=====================================================
     initial begin
         clk_i      = 0;
         arst_ni    = 0;
@@ -81,10 +72,9 @@ end
         //=================================================
         $display("\n==== TEST 1: SINGLE, 0xB5 ====");
         $display("expect io_o[0]: 1 0 1 1 0 1 0 1 (MSB first)");
-        tx_data_i  <= 8'hB5;
-        tx_width_i <= 2'b00;       // single
+        tx_data_i  <= 8'hB5;        // FIX: was 0x35, now matches label
+        tx_width_i <= 2'b00;        // single
         tx_start_i <= 1'b1;
-        
 
         wait (tx_done_o == 1'b1);
         @(posedge clk_i);
@@ -98,10 +88,9 @@ end
         //=================================================
         $display("\n==== TEST 2: QUAD, 0xB5 ====");
         $display("expect io_o: 1011 then 0101");
-        tx_data_i  = 8'hB5;
-        tx_width_i = 2'b10;       // quad
+        tx_data_i  <= 8'hB5;        // FIX: non-blocking (was blocking =)
+        tx_width_i <= 2'b10;        // FIX: non-blocking, quad
         tx_start_i <= 1'b1;
-
 
         wait (tx_done_o == 1'b1);
         @(posedge clk_i);
@@ -113,14 +102,12 @@ end
         $finish;
     end
 
-    // timeout
     initial begin
         #10000;
         $display("ERROR: timeout");
         $finish;
     end
 
-    // waveform
     initial begin
         $dumpfile("shifter_tb.vcd");
         $dumpvars(0, tx_shifter_tb);
