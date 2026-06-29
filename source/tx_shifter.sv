@@ -22,9 +22,8 @@ logic [7:0] shift_reg;
 logic       shifting;
 logic [2:0] cnt;
 logic [2:0] shift_amt;
-logic       flag;
 
-logic tx_start_d;
+logic just_done;
 
 always_ff @(posedge clk_i or negedge arst_ni) begin
     if (!arst_ni) begin
@@ -33,18 +32,18 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
         tx_done_o <= '0;
         io_o      <= '0;
         shifting  <= '0;
-        tx_start_d <= 1'b0;
+        just_done <= 1'b0;          // ← reset
     end
     else begin
-        tx_done_o <= 1'b0;                   // default low
-        tx_start_d <= tx_start_i;
+        tx_done_o <= 1'b0;
+        just_done <= 1'b0;          // ← default low
 
-        if (tx_start_i && !shifting) begin
+        if (!shifting && tx_start_i && !just_done) begin   // ← !just_done যোগ
             shift_reg <= tx_data_i;
             shifting  <= 1'b1;
             cyc_cnt   <= '0;
         end
-        else if (shifting && (sck_pulse_i)) begin
+        else if (shifting && sck_pulse_i) begin
             case (tx_width_i)
                 2'b00: begin io_o[0]   <= shift_reg[7];   io_oe_o <= 4'b0001; end
                 2'b01: begin io_o[1:0] <= shift_reg[7:6]; io_oe_o <= 4'b0011; end
@@ -54,12 +53,14 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
             if (cyc_cnt == cnt) begin
                 shifting  <= 1'b0;
                 tx_done_o <= 1'b1;
+                just_done <= 1'b1;
                 cyc_cnt   <= '0;
             end else begin
                 cyc_cnt <= cyc_cnt + 1;
             end
-        end  else if (!shifting) begin
-                io_oe_o <= '0;        // ← byte শেষ/idle → release (এটা যোগ করো)
+        end
+        else if (!shifting) begin
+            io_oe_o <= '0;
         end
     end
 end

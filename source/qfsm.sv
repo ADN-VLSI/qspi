@@ -24,6 +24,8 @@ module qspi_fsm (
     // SCK generator control
     //=========================================================
     output logic              sck_en_o,
+    input  logic              sck_pulse_i,       // <-- ADDED: one pulse per SCK bit period
+                                                 //     (same pulse shifter/packer use)
 
     //=========================================================
     // TX shifter interface
@@ -64,9 +66,6 @@ module qspi_fsm (
     //   WIP split into two phases:
     //     WIP_CMD_S  : send RDSR opcode (0x05)  -> TX only
     //     WIP_DATA_S : read status byte         -> RX only
-    //   This keeps the command (TX) and status (RX) phases
-    //   sequential, instead of asserting tx_start and rx_en
-    //   at the same time.
     //---------------------------------------------------------
     typedef enum logic [3:0] {
         IDLE_S, WE_CMD_S, CS_GAP1_S, WCMD_S, WADDR_S, WMODE_S,
@@ -87,7 +86,8 @@ module qspi_fsm (
     logic [2:0]  wdata_byte_len, rdata_byte_len;
 
     localparam int TCS = 5;
-    localparam int DUMMY_CYCLES = 4;
+    localparam int DUMMY_CYCLES = 8;   // <-- CHANGED 4 -> 8 (FAST READ 0x0C latency;
+                                       //     confirm exact value in datasheet / CR register)
 
     //---------------------------------------------------------
     // Config extraction
@@ -107,11 +107,20 @@ module qspi_fsm (
         else          state <= next_state;
     end
 
+    //---------------------------------------------------------
+    // Dummy cycle counter
+    //   <-- CHANGED: count SCK pulses (not system clocks) so the
+    //       dummy phase lasts DUMMY_CYCLES *SCK* cycles. Hold the
+    //       count while in DUMMY_S between pulses; clear on exit.
+    //---------------------------------------------------------
     logic [3:0] dummy_cnt;
     always_ff @(posedge clk_i or negedge arst_ni) begin
-        if (!arst_ni)            dummy_cnt <= '0;
-        else if (state == DUMMY_S) dummy_cnt <= dummy_cnt + 1;
-        else                     dummy_cnt <= '0;
+        if (!arst_ni)
+            dummy_cnt <= '0;
+        else if (state == DUMMY_S && sck_pulse_i)
+            dummy_cnt <= dummy_cnt + 1;
+        else if (state != DUMMY_S)
+            dummy_cnt <= '0;
     end
 
     //---------------------------------------------------------
@@ -191,10 +200,8 @@ module qspi_fsm (
 
             CS_GAP2_S: if (tcs_cnt == TCS - 1) next_state = WIP_CMD_S;
 
-            // WIP phase 1: send RDSR opcode (TX only)
             WIP_CMD_S: if (tx_done_i) next_state = WIP_DATA_S;
 
-            // WIP phase 2: read status byte (RX only)
             WIP_DATA_S: begin
                 if (rx_done_i) begin
                     if (rx_data_i[0]) next_state = CS_GAP2_S;  // busy: poll again
@@ -298,23 +305,19 @@ module qspi_fsm (
                 if (tx_done_i) tx_fifo_pop_o = 1'b1;
             end
 
-            // WIP phase 1: send RDSR opcode only (TX)
             WIP_CMD_S: begin
                 cs_no      = 1'b0;
                 sck_en_o   = 1'b1;
                 tx_data_o  = 8'h05;        // RDSR
                 tx_width_o = 2'b00;        // single
                 tx_start_o = 1'b1;
-                // rx_en_o stays 0 here
             end
 
-            // WIP phase 2: read status byte only (RX)
             WIP_DATA_S: begin
                 cs_no      = 1'b0;
                 sck_en_o   = 1'b1;
                 rx_en_o    = 1'b1;         // capture status
                 rx_width_o = 2'b00;        // single
-                // tx_start_o stays 0 here
             end
 
             RCMD_S: begin
@@ -343,7 +346,7 @@ module qspi_fsm (
 
             DUMMY_S: begin
                 cs_no    = 1'b0;
-                sck_en_o = 1'b1;
+                sck_en_o = 1'b1;           // clock runs, no TX/RX (lines released)
             end
 
             RDATA_S: begin

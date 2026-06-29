@@ -21,8 +21,9 @@ logic [7:0] shift_reg;
 logic       shifting;
 logic [2:0] cnt;
 
-logic rx_start_d;
-wire rx_start_pulse = rx_en_i && !rx_start_d;
+//logic rx_start_d;
+//wire rx_start_pulse = rx_en_i && !rx_start_d;
+logic just_done;
 
 always_ff @(posedge clk_i or negedge arst_ni) begin
     if (!arst_ni) begin
@@ -30,11 +31,13 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
         shift_reg <= '0;
         rx_done_o <= '0;
         shifting  <= '0;
-        rx_start_d <= 1'b0;
+       // rx_start_d <= 1'b0;
+        just_done <= '0;
     end else begin
         rx_done_o <= 1'b0;                   // default low
-        rx_start_d <= rx_en_i;
-        if (rx_en_i && !shifting) begin
+        //rx_start_d <= rx_en_i;
+        just_done <= '0;       
+        if (rx_en_i && !shifting && !just_done) begin
             shift_reg <= '0;
             shifting  <= 1'b1;
             cyc_cnt   <= '0;
@@ -50,6 +53,7 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
                 shifting  <= 1'b0;
                 rx_done_o <= 1'b1;
                 cyc_cnt   <= '0;
+                just_done <= '1;
             case(rx_width_i)
                 2'b00: rx_data_o <= {shift_reg[6:0], io_i[1]};
                 2'b01: rx_data_o <= {shift_reg[5:0], io_i[1:0]};
