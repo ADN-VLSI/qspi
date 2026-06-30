@@ -86,7 +86,7 @@ module qspi_fsm (
     logic [2:0]  wdata_byte_len, rdata_byte_len;
 
     localparam int TCS = 5;
-    localparam int DUMMY_CYCLES = 8;   // <-- CHANGED 4 -> 8 (FAST READ 0x0C latency;
+    localparam int DUMMY_CYCLES = 10;   // <-- CHANGED 4 -> 8 (FAST READ 0x0C latency;
                                        //     confirm exact value in datasheet / CR register)
 
     //---------------------------------------------------------

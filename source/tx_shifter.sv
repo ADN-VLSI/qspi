@@ -23,6 +23,8 @@ logic       shifting;
 logic [2:0] cnt;
 logic [2:0] shift_amt;
 
+logic [7:0] data;
+
 logic just_done;
 
 always_ff @(posedge clk_i or negedge arst_ni) begin
@@ -54,6 +56,7 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
                 shifting  <= 1'b0;
                 tx_done_o <= 1'b1;
                 just_done <= 1'b1;
+                data <= shift_reg;
                 cyc_cnt   <= '0;
             end else begin
                 cyc_cnt <= cyc_cnt + 1;

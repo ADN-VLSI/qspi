@@ -105,7 +105,7 @@ module qspi_core (
         .dummy_i         (dummy_i),
         .ctrl_reg_i      (ctrl_reg_i),
         .sck_en_o        (i_sck_en),
-        .sck_pulse_i     (i_sck_pulse_tx),
+        .sck_pulse_i     (i_sck_pulse_rx),
         .tx_data_o       (i_tx_data),
         .tx_width_o      (i_tx_width),
         .tx_start_o      (i_tx_start),

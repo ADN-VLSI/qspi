@@ -79,6 +79,14 @@ module qspi_top_tb;
         $display("[%0t] state = %s", $time, dut.u_core.u_fsm.state.name());
     end
 
+    // ---- FLASH command monitors ----
+    // opcode_in = raw opcode byte the flash shifted in (what we sent)
+    // Instruct  = the command the flash decoded it to (NONE = not understood)
+    always @(u_flash.opcode_in)
+        $display("[%0t]   FLASH opcode_in = 0x%02h", $time, u_flash.opcode_in);
+    always @(u_flash.Instruct)
+        $display("[%0t]   FLASH Instruct  = %0d", $time, u_flash.Instruct);
+
     always @(posedge clk_i) begin
         if (rx_data_out_valid_o && rx_data_out_ready_i)
             $display("[%0t]   READ-BACK byte: 0x%02h", $time, rx_data_out_o);
@@ -150,7 +158,25 @@ module qspi_top_tb;
         ctrl_reg_i.START       <= 1'b0;          // one-shot
         wait (busy_o == 1'b0);
         $display("==== WRITE done ====\n");
+
+        // ---- PEEK INTO FLASH MEMORY ----
+        // Mem is "integer Mem[0:AddrRANGE]" inside the model, indexed by
+        // the full byte address. After the Page Program of DE,AD at
+        // 0x00516011 these should read back DE and AD. If they read the
+        // erased value (MaxData) instead, the WRITE landed wrong (address
+        // or data), and that — not the read path — is the root of the zz.
+        $display("FLASH Mem[0x00516011] = 0x%02h (expect DE)", u_flash.Mem[32'h00516011]);
+        $display("FLASH Mem[0x00516012] = 0x%02h (expect AD)", u_flash.Mem[32'h00516012]);
+
         repeat (10) @(posedge clk_i);
+
+        // ---- DIAGNOSTIC DELAY ----
+        // Mirror supervisor's fixed wait so the flash's internal Page Program
+        // (tPP ~ 90us) is guaranteed complete before we read.
+        // If read-back data is now correct (DE AD instead of zz), then the
+        // WIP poll was terminating too early (program not finished -> zz).
+        // If still zz, the problem is in the read path (dummy / SCK), not WIP.
+        #750_000_000;   // 750 us (same as supervisor's tdevice_WRR)
 
         //=================================================
         // STEP 2: READ  -- FAST READ 4 (0x0C), 4-byte addr, dummy, 2 bytes
@@ -182,7 +208,7 @@ module qspi_top_tb;
     end
 
     initial begin
-        #500_000_000;
+        #2_000_000_000;   // 2 ms - large enough for power-up + write + 750us delay + read
         $display("ERROR: global timeout");
         $finish;
     end

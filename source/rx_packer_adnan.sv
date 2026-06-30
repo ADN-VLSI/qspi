@@ -37,7 +37,7 @@ always_ff @(posedge clk_i or negedge arst_ni) begin
         rx_done_o <= 1'b0;                   // default low
         //rx_start_d <= rx_en_i;
         just_done <= '0;       
-        if (rx_en_i && !shifting && !just_done) begin
+        if (rx_en_i && !shifting) begin
             shift_reg <= '0;
             shifting  <= 1'b1;
             cyc_cnt   <= '0;
